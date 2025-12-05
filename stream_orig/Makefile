@@ -1,5 +1,5 @@
 CC = gcc
-CFLAGS = -O3
+CFLAGS = -O
 
 FF = g77
 FFLAGS = -O2
@@ -15,7 +15,7 @@ stream.out: stream.c
 	$(CC) $(CFLAGS) stream.c -o stream.out
 
 clean:
-	rm -f stream_f.exe stream_c.exe *.o
+	rm -f stream_f.exe stream_c.exe *.o *.out
 
 # an example of a more complex build line for the Intel icc compiler
 stream.icc: stream.c
