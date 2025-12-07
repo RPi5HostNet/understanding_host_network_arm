@@ -1,0 +1,7 @@
+74303:C 06 Dec 2025 00:24:45.168 * oO0OoO0OoO0Oo Redis is starting oO0OoO0OoO0Oo
+74303:C 06 Dec 2025 00:24:45.168 * Redis version=8.0.2, bits=64, commit=00000000, modified=0, pid=74303, just started
+74303:C 06 Dec 2025 00:24:45.168 * Configuration loaded
+74303:M 06 Dec 2025 00:24:45.168 * monotonic clock: POSIX clock_gettime
+74303:M 06 Dec 2025 00:24:45.169 * Running mode=standalone, port=0.
+74303:M 06 Dec 2025 00:24:45.170 * Server initialized
+74303:M 06 Dec 2025 00:24:45.170 * Ready to accept connections unix
