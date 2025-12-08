@@ -50,7 +50,8 @@
 #include <string.h>
  #define _GNU_SOURCE
 #include <sys/mman.h>
-#include <immintrin.h>
+#include <arm_neon.h>
+#include <stdlib.h>
 #include <fcntl.h>
 
 #define MAP_HUGE_1GB (30 << MAP_HUGE_SHIFT)
@@ -218,109 +219,30 @@ extern void tuned_STREAM_Triad(STREAM_TYPE scalar);
 extern int omp_get_num_threads();
 #endif
 
-// double STREAM_Read16(uint64_t *read_checksum) {
-// 	int j;
-// 	__m128i sum = _mm_set_epi32(0, 0, 0, 0);
-// 	for (j=0; j<STREAM_ARRAY_SIZE; j += 2) {
-// 		__m128i mm_a = _mm_load_si128(&a[j]);
-// 		sum = _mm_add_epi32(sum, mm_a);
-// 	}
-
-// 	int chx0 = _mm_extract_epi32(sum, 0);
-// 	int chx1 = _mm_extract_epi32(sum, 1);
-// 	int chx2 = _mm_extract_epi32(sum, 2);
-// 	int chx3 = _mm_extract_epi32(sum, 3);
-// 	*read_checksum += chx0 + chx1 + chx2 + chx3;
-// 	return (STREAM_ARRAY_SIZE*sizeof(STREAM_TYPE));
-// }
-
-// double STREAM_Read16(uint64_t *read_checksum) {
-// 	asm volatile(
-//         "mov    %[memarea], %%rax \n"
-//         "2: \n"
-//         "movdqa 0*16(%%rax), %%xmm0 \n"
-//         "movdqa 1*16(%%rax), %%xmm1 \n"
-//         "movdqa 2*16(%%rax), %%xmm2 \n"
-//         "movdqa 3*16(%%rax), %%xmm3 \n"
-//         "movdqa 4*16(%%rax), %%xmm4 \n"
-//         "movdqa 5*16(%%rax), %%xmm5 \n"
-//         "movdqa 6*16(%%rax), %%xmm6 \n"
-//         "movdqa 7*16(%%rax), %%xmm7 \n"
-//         "movdqa 8*16(%%rax), %%xmm8 \n"
-//         "movdqa 9*16(%%rax), %%xmm9 \n"
-//         "movdqa 10*16(%%rax), %%xmm10 \n"
-//         "movdqa 11*16(%%rax), %%xmm11 \n"
-//         "movdqa 12*16(%%rax), %%xmm12 \n"
-//         "movdqa 13*16(%%rax), %%xmm13 \n"
-//         "movdqa 14*16(%%rax), %%xmm14 \n"
-//         "movdqa 15*16(%%rax), %%xmm15 \n"
-//         "add    $16*16, %%rax \n"
-//         "cmp    %[end], %%rax \n"
-//         "jb     2b \n"
-// 		:
-//         : [memarea] "r" ((char *)a), [end] "r" ((char *)(a+STREAM_ARRAY_SIZE))
-//         : "rax", "xmm0", "xmm1", "xmm2", "xmm3", "xmm4", "xmm5", "xmm6", "xmm7", "xmm8", "xmm9", "xmm10", "xmm11", "xmm12", "xmm13", "xmm14", "xmm15", "cc", "memory");
-// 	return (STREAM_ARRAY_SIZE*sizeof(STREAM_TYPE));
-// }
-
 double STREAM_Read16(uint64_t *read_checksum) {
-	asm volatile(
-        "mov    %[memarea], %%rax \n"
-        "2: \n"
-        "movdqa 0*16(%%rax), %%xmm0 \n"
-        "movdqa 1*16(%%rax), %%xmm1 \n"
-        "movdqa 2*16(%%rax), %%xmm2 \n"
-        "movdqa 3*16(%%rax), %%xmm3 \n"
-        "movdqa 4*16(%%rax), %%xmm4 \n"
-        "movdqa 5*16(%%rax), %%xmm5 \n"
-        "movdqa 6*16(%%rax), %%xmm6 \n"
-        "movdqa 7*16(%%rax), %%xmm7 \n"
-        "add    $8*16, %%rax \n"
-        "cmp    %[end], %%rax \n"
-        "jb     2b \n"
-		:
-        : [memarea] "r" ((char *)a), [end] "r" ((char *)(a+STREAM_ARRAY_SIZE))
-        : "rax", "xmm0", "xmm1", "xmm2", "xmm3", "xmm4", "xmm5", "xmm6", "xmm7", "cc", "memory");
-	return (STREAM_ARRAY_SIZE*sizeof(STREAM_TYPE));
+    int j;
+    // Initialize accumulator
+    uint64x2_t sum = vdupq_n_u64(0);
+
+    for (j=0; j<STREAM_ARRAY_SIZE; j += 2) {
+        const uint64_t *p = (const uint64_t *)&a[j];
+        
+        // Load 16 bytes into NEON register
+        uint64x2_t v = vld1q_u64(p);
+
+        // Accumulate
+        sum = vaddq_u64(sum, v);
+    }
+
+    // Horizontal add across the final vector
+    *read_checksum += vaddvq_u64(sum);
+    return (STREAM_ARRAY_SIZE*sizeof(STREAM_TYPE));
 }
 
 
 
 double STREAM_Read64(uint64_t *read_checksum) {
-	int j;
-	__m512i sum = _mm512_set_epi32(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
-	for (j=0; j<STREAM_ARRAY_SIZE; j += 8) {
-		__m512i mm_a = _mm512_load_si512(&a[j]);
-		sum = _mm512_add_epi32(sum, mm_a);
-	}
-
-	int chx0, chx1, chx2, chx3;
-	__m128i chx;
-	chx = _mm512_extracti32x4_epi32(sum, 0);
-	chx0 = _mm_extract_epi32(chx, 0);
-	chx1 = _mm_extract_epi32(chx, 1);
-	chx2 = _mm_extract_epi32(chx, 2);
-	chx3 = _mm_extract_epi32(chx, 3);
-	*read_checksum += chx0 + chx1 + chx2 + chx3;
-	chx = _mm512_extracti32x4_epi32(sum, 1);
-	chx0 = _mm_extract_epi32(chx, 0);
-	chx1 = _mm_extract_epi32(chx, 1);
-	chx2 = _mm_extract_epi32(chx, 2);
-	chx3 = _mm_extract_epi32(chx, 3);
-	*read_checksum += chx0 + chx1 + chx2 + chx3;
-	chx = _mm512_extracti32x4_epi32(sum, 2);
-	chx0 = _mm_extract_epi32(chx, 0);
-	chx1 = _mm_extract_epi32(chx, 1);
-	chx2 = _mm_extract_epi32(chx, 2);
-	chx3 = _mm_extract_epi32(chx, 3);
-	*read_checksum += chx0 + chx1 + chx2 + chx3;
-	chx = _mm512_extracti32x4_epi32(sum, 3);
-	chx0 = _mm_extract_epi32(chx, 0);
-	chx1 = _mm_extract_epi32(chx, 1);
-	chx2 = _mm_extract_epi32(chx, 2);
-	chx3 = _mm_extract_epi32(chx, 3);
-	*read_checksum += chx0 + chx1 + chx2 + chx3;
-	return (STREAM_ARRAY_SIZE*sizeof(STREAM_TYPE));
+	printf("Not implemented"); exit(-1); return -1;
 }
 
 // This needs to be a power of two
@@ -328,512 +250,98 @@ double STREAM_Read64(uint64_t *read_checksum) {
 
 // Using XORShift random generator
 double STREAM_Read64_Random(uint64_t *read_checksum) {
-	int j;
-	__m512i sum = _mm512_set_epi32(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
-	uint64_t x = 432437644;
-	// srand(x);
-	for (j=0; j<READ64_ARRAY_COUNT; j++) {
-		__m512i mm_a = _mm512_load_si512(&a[8*(x & (READ64_ARRAY_COUNT - 1))]);
-		//printf("[ADDR] %x\n", 8*8*(x & (READ64_ARRAY_COUNT - 1)));
-		sum = _mm512_add_epi32(sum, mm_a);
-		x ^= x << 13;
-		x ^= x >> 7;
-		x ^= x << 17;
-		// x ^= x >> 12;
-		// x ^= x << 25;
-		// x ^= x >> 27;
-	}
-
-	int chx0, chx1, chx2, chx3;
-	__m128i chx;
-	chx = _mm512_extracti32x4_epi32(sum, 0);
-	chx0 = _mm_extract_epi32(chx, 0);
-	chx1 = _mm_extract_epi32(chx, 1);
-	chx2 = _mm_extract_epi32(chx, 2);
-	chx3 = _mm_extract_epi32(chx, 3);
-	*read_checksum += chx0 + chx1 + chx2 + chx3;
-	chx = _mm512_extracti32x4_epi32(sum, 1);
-	chx0 = _mm_extract_epi32(chx, 0);
-	chx1 = _mm_extract_epi32(chx, 1);
-	chx2 = _mm_extract_epi32(chx, 2);
-	chx3 = _mm_extract_epi32(chx, 3);
-	*read_checksum += chx0 + chx1 + chx2 + chx3;
-	chx = _mm512_extracti32x4_epi32(sum, 2);
-	chx0 = _mm_extract_epi32(chx, 0);
-	chx1 = _mm_extract_epi32(chx, 1);
-	chx2 = _mm_extract_epi32(chx, 2);
-	chx3 = _mm_extract_epi32(chx, 3);
-	*read_checksum += chx0 + chx1 + chx2 + chx3;
-	chx = _mm512_extracti32x4_epi32(sum, 3);
-	chx0 = _mm_extract_epi32(chx, 0);
-	chx1 = _mm_extract_epi32(chx, 1);
-	chx2 = _mm_extract_epi32(chx, 2);
-	chx3 = _mm_extract_epi32(chx, 3);
-	*read_checksum += chx0 + chx1 + chx2 + chx3;
-	return (STREAM_ARRAY_SIZE*sizeof(STREAM_TYPE));
+	printf("Not implemented"); exit(-1); return -1;
 }
 
 #define READ64_ARRAY_COUNT_CHUNK2 (READ64_ARRAY_COUNT/2)
 
 double STREAM_Read64_Random_Chunk2(uint64_t *read_checksum) {
-	int j, k;
-	__m512i sum = _mm512_set_epi32(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
-	uint64_t x = 432437644;
-	// srand(x);
-	for (j=0; j<READ64_ARRAY_COUNT_CHUNK2; j++) {
-		for(k = 0; k < 2; k++) {
-			__m512i mm_a = _mm512_load_si512(&a[2*8*(x & (READ64_ARRAY_COUNT_CHUNK2 - 1)) + 8*k]);
-			sum = _mm512_add_epi32(sum, mm_a);
-		}
-		x ^= x << 13;
-		x ^= x >> 7;
-		x ^= x << 17;
-		// x ^= x >> 12;
-		// x ^= x << 25;
-		// x ^= x >> 27;
-	}
-
-	int chx0, chx1, chx2, chx3;
-	__m128i chx;
-	chx = _mm512_extracti32x4_epi32(sum, 0);
-	chx0 = _mm_extract_epi32(chx, 0);
-	chx1 = _mm_extract_epi32(chx, 1);
-	chx2 = _mm_extract_epi32(chx, 2);
-	chx3 = _mm_extract_epi32(chx, 3);
-	*read_checksum += chx0 + chx1 + chx2 + chx3;
-	chx = _mm512_extracti32x4_epi32(sum, 1);
-	chx0 = _mm_extract_epi32(chx, 0);
-	chx1 = _mm_extract_epi32(chx, 1);
-	chx2 = _mm_extract_epi32(chx, 2);
-	chx3 = _mm_extract_epi32(chx, 3);
-	*read_checksum += chx0 + chx1 + chx2 + chx3;
-	chx = _mm512_extracti32x4_epi32(sum, 2);
-	chx0 = _mm_extract_epi32(chx, 0);
-	chx1 = _mm_extract_epi32(chx, 1);
-	chx2 = _mm_extract_epi32(chx, 2);
-	chx3 = _mm_extract_epi32(chx, 3);
-	*read_checksum += chx0 + chx1 + chx2 + chx3;
-	chx = _mm512_extracti32x4_epi32(sum, 3);
-	chx0 = _mm_extract_epi32(chx, 0);
-	chx1 = _mm_extract_epi32(chx, 1);
-	chx2 = _mm_extract_epi32(chx, 2);
-	chx3 = _mm_extract_epi32(chx, 3);
-	*read_checksum += chx0 + chx1 + chx2 + chx3;
-	return (STREAM_ARRAY_SIZE*sizeof(STREAM_TYPE));
+	printf("Not implemented"); exit(-1); return -1;
 }
 
 #define READ64_ARRAY_COUNT_CHUNK4 (READ64_ARRAY_COUNT/4)
 
 double STREAM_Read64_Random_Chunk4(uint64_t *read_checksum) {
-	int j, k;
-	__m512i sum = _mm512_set_epi32(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
-	uint64_t x = 432437644;
-	// srand(x);
-	for (j=0; j<READ64_ARRAY_COUNT_CHUNK4; j++) {
-		for(k = 0; k < 4; k++) {
-			__m512i mm_a = _mm512_load_si512(&a[4*8*(x & (READ64_ARRAY_COUNT_CHUNK4 - 1)) + 8*k]);
-			sum = _mm512_add_epi32(sum, mm_a);
-		}
-		x ^= x << 13;
-		x ^= x >> 7;
-		x ^= x << 17;
-		// x ^= x >> 12;
-		// x ^= x << 25;
-		// x ^= x >> 27;
-	}
-
-	int chx0, chx1, chx2, chx3;
-	__m128i chx;
-	chx = _mm512_extracti32x4_epi32(sum, 0);
-	chx0 = _mm_extract_epi32(chx, 0);
-	chx1 = _mm_extract_epi32(chx, 1);
-	chx2 = _mm_extract_epi32(chx, 2);
-	chx3 = _mm_extract_epi32(chx, 3);
-	*read_checksum += chx0 + chx1 + chx2 + chx3;
-	chx = _mm512_extracti32x4_epi32(sum, 1);
-	chx0 = _mm_extract_epi32(chx, 0);
-	chx1 = _mm_extract_epi32(chx, 1);
-	chx2 = _mm_extract_epi32(chx, 2);
-	chx3 = _mm_extract_epi32(chx, 3);
-	*read_checksum += chx0 + chx1 + chx2 + chx3;
-	chx = _mm512_extracti32x4_epi32(sum, 2);
-	chx0 = _mm_extract_epi32(chx, 0);
-	chx1 = _mm_extract_epi32(chx, 1);
-	chx2 = _mm_extract_epi32(chx, 2);
-	chx3 = _mm_extract_epi32(chx, 3);
-	*read_checksum += chx0 + chx1 + chx2 + chx3;
-	chx = _mm512_extracti32x4_epi32(sum, 3);
-	chx0 = _mm_extract_epi32(chx, 0);
-	chx1 = _mm_extract_epi32(chx, 1);
-	chx2 = _mm_extract_epi32(chx, 2);
-	chx3 = _mm_extract_epi32(chx, 3);
-	*read_checksum += chx0 + chx1 + chx2 + chx3;
-	return (STREAM_ARRAY_SIZE*sizeof(STREAM_TYPE));
+	printf("Not implemented"); exit(-1); return -1;
 }
 
 #define READ64_ARRAY_COUNT_CHUNK8 (READ64_ARRAY_COUNT/8)
 
 double STREAM_Read64_Random_Chunk8(uint64_t *read_checksum) {
-	int j, k;
-	__m512i sum = _mm512_set_epi32(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
-	uint64_t x = 432437644;
-	// srand(x);
-	for (j=0; j<READ64_ARRAY_COUNT_CHUNK8; j++) {
-		for(k = 0; k < 8; k++) {
-			__m512i mm_a = _mm512_load_si512(&a[8*8*(x & (READ64_ARRAY_COUNT_CHUNK8 - 1)) + 8*k]);
-			sum = _mm512_add_epi32(sum, mm_a);
-		}
-		x ^= x << 13;
-		x ^= x >> 7;
-		x ^= x << 17;
-		// x ^= x >> 12;
-		// x ^= x << 25;
-		// x ^= x >> 27;
-	}
-
-	int chx0, chx1, chx2, chx3;
-	__m128i chx;
-	chx = _mm512_extracti32x4_epi32(sum, 0);
-	chx0 = _mm_extract_epi32(chx, 0);
-	chx1 = _mm_extract_epi32(chx, 1);
-	chx2 = _mm_extract_epi32(chx, 2);
-	chx3 = _mm_extract_epi32(chx, 3);
-	*read_checksum += chx0 + chx1 + chx2 + chx3;
-	chx = _mm512_extracti32x4_epi32(sum, 1);
-	chx0 = _mm_extract_epi32(chx, 0);
-	chx1 = _mm_extract_epi32(chx, 1);
-	chx2 = _mm_extract_epi32(chx, 2);
-	chx3 = _mm_extract_epi32(chx, 3);
-	*read_checksum += chx0 + chx1 + chx2 + chx3;
-	chx = _mm512_extracti32x4_epi32(sum, 2);
-	chx0 = _mm_extract_epi32(chx, 0);
-	chx1 = _mm_extract_epi32(chx, 1);
-	chx2 = _mm_extract_epi32(chx, 2);
-	chx3 = _mm_extract_epi32(chx, 3);
-	*read_checksum += chx0 + chx1 + chx2 + chx3;
-	chx = _mm512_extracti32x4_epi32(sum, 3);
-	chx0 = _mm_extract_epi32(chx, 0);
-	chx1 = _mm_extract_epi32(chx, 1);
-	chx2 = _mm_extract_epi32(chx, 2);
-	chx3 = _mm_extract_epi32(chx, 3);
-	*read_checksum += chx0 + chx1 + chx2 + chx3;
-	return (STREAM_ARRAY_SIZE*sizeof(STREAM_TYPE));
+	printf("Not implemented"); exit(-1); return -1;
 }
 
 #define READ64_ARRAY_COUNT_CHUNK16 (READ64_ARRAY_COUNT/16)
 
 double STREAM_Read64_Random_Chunk16(uint64_t *read_checksum) {
-	int j, k;
-	__m512i sum = _mm512_set_epi32(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
-	uint64_t x = 432437644;
-	// srand(x);
-	for (j=0; j<READ64_ARRAY_COUNT_CHUNK16; j++) {
-		for(k = 0; k < 16; k++) {
-			__m512i mm_a = _mm512_load_si512(&a[16*8*(x & (READ64_ARRAY_COUNT_CHUNK16 - 1)) + 8*k]);
-			sum = _mm512_add_epi32(sum, mm_a);
-		}
-		x ^= x << 13;
-		x ^= x >> 7;
-		x ^= x << 17;
-		// x ^= x >> 12;
-		// x ^= x << 25;
-		// x ^= x >> 27;
-	}
-
-	int chx0, chx1, chx2, chx3;
-	__m128i chx;
-	chx = _mm512_extracti32x4_epi32(sum, 0);
-	chx0 = _mm_extract_epi32(chx, 0);
-	chx1 = _mm_extract_epi32(chx, 1);
-	chx2 = _mm_extract_epi32(chx, 2);
-	chx3 = _mm_extract_epi32(chx, 3);
-	*read_checksum += chx0 + chx1 + chx2 + chx3;
-	chx = _mm512_extracti32x4_epi32(sum, 1);
-	chx0 = _mm_extract_epi32(chx, 0);
-	chx1 = _mm_extract_epi32(chx, 1);
-	chx2 = _mm_extract_epi32(chx, 2);
-	chx3 = _mm_extract_epi32(chx, 3);
-	*read_checksum += chx0 + chx1 + chx2 + chx3;
-	chx = _mm512_extracti32x4_epi32(sum, 2);
-	chx0 = _mm_extract_epi32(chx, 0);
-	chx1 = _mm_extract_epi32(chx, 1);
-	chx2 = _mm_extract_epi32(chx, 2);
-	chx3 = _mm_extract_epi32(chx, 3);
-	*read_checksum += chx0 + chx1 + chx2 + chx3;
-	chx = _mm512_extracti32x4_epi32(sum, 3);
-	chx0 = _mm_extract_epi32(chx, 0);
-	chx1 = _mm_extract_epi32(chx, 1);
-	chx2 = _mm_extract_epi32(chx, 2);
-	chx3 = _mm_extract_epi32(chx, 3);
-	*read_checksum += chx0 + chx1 + chx2 + chx3;
-	return (STREAM_ARRAY_SIZE*sizeof(STREAM_TYPE));
+	printf("Not implemented"); exit(-1); return -1;
 }
 
 #define READ64_ARRAY_COUNT_CHUNK32 (READ64_ARRAY_COUNT/32)
 
 double STREAM_Read64_Random_Chunk32(uint64_t *read_checksum) {
-	int j, k;
-	__m512i sum = _mm512_set_epi32(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
-	uint64_t x = 432437644;
-	// srand(x);
-	for (j=0; j<READ64_ARRAY_COUNT_CHUNK32; j++) {
-		for(k = 0; k < 32; k++) {
-			__m512i mm_a = _mm512_load_si512(&a[32*8*(x & (READ64_ARRAY_COUNT_CHUNK32 - 1)) + 8*k]);
-			sum = _mm512_add_epi32(sum, mm_a);
-		}
-		x ^= x << 13;
-		x ^= x >> 7;
-		x ^= x << 17;
-		// x ^= x >> 12;
-		// x ^= x << 25;
-		// x ^= x >> 27;
-	}
-
-	int chx0, chx1, chx2, chx3;
-	__m128i chx;
-	chx = _mm512_extracti32x4_epi32(sum, 0);
-	chx0 = _mm_extract_epi32(chx, 0);
-	chx1 = _mm_extract_epi32(chx, 1);
-	chx2 = _mm_extract_epi32(chx, 2);
-	chx3 = _mm_extract_epi32(chx, 3);
-	*read_checksum += chx0 + chx1 + chx2 + chx3;
-	chx = _mm512_extracti32x4_epi32(sum, 1);
-	chx0 = _mm_extract_epi32(chx, 0);
-	chx1 = _mm_extract_epi32(chx, 1);
-	chx2 = _mm_extract_epi32(chx, 2);
-	chx3 = _mm_extract_epi32(chx, 3);
-	*read_checksum += chx0 + chx1 + chx2 + chx3;
-	chx = _mm512_extracti32x4_epi32(sum, 2);
-	chx0 = _mm_extract_epi32(chx, 0);
-	chx1 = _mm_extract_epi32(chx, 1);
-	chx2 = _mm_extract_epi32(chx, 2);
-	chx3 = _mm_extract_epi32(chx, 3);
-	*read_checksum += chx0 + chx1 + chx2 + chx3;
-	chx = _mm512_extracti32x4_epi32(sum, 3);
-	chx0 = _mm_extract_epi32(chx, 0);
-	chx1 = _mm_extract_epi32(chx, 1);
-	chx2 = _mm_extract_epi32(chx, 2);
-	chx3 = _mm_extract_epi32(chx, 3);
-	*read_checksum += chx0 + chx1 + chx2 + chx3;
-	return (STREAM_ARRAY_SIZE*sizeof(STREAM_TYPE));
+	printf("Not implemented"); exit(-1); return -1;
 }
 
 #define READ64_ARRAY_COUNT_CHUNK64 (READ64_ARRAY_COUNT/64)
 
 double STREAM_Read64_Random_Chunk64(uint64_t *read_checksum) {
-	int j, k;
-	__m512i sum = _mm512_set_epi32(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
-	uint64_t x = 432437644;
-	// srand(x);
-	for (j=0; j<READ64_ARRAY_COUNT_CHUNK64; j++) {
-		for(k = 0; k < 64; k++) {
-			__m512i mm_a = _mm512_load_si512(&a[64*8*(x & (READ64_ARRAY_COUNT_CHUNK64 - 1)) + 8*k]);
-			sum = _mm512_add_epi32(sum, mm_a);
-		}
-		x ^= x << 13;
-		x ^= x >> 7;
-		x ^= x << 17;
-		// x ^= x >> 12;
-		// x ^= x << 25;
-		// x ^= x >> 27;
-	}
-
-	int chx0, chx1, chx2, chx3;
-	__m128i chx;
-	chx = _mm512_extracti32x4_epi32(sum, 0);
-	chx0 = _mm_extract_epi32(chx, 0);
-	chx1 = _mm_extract_epi32(chx, 1);
-	chx2 = _mm_extract_epi32(chx, 2);
-	chx3 = _mm_extract_epi32(chx, 3);
-	*read_checksum += chx0 + chx1 + chx2 + chx3;
-	chx = _mm512_extracti32x4_epi32(sum, 1);
-	chx0 = _mm_extract_epi32(chx, 0);
-	chx1 = _mm_extract_epi32(chx, 1);
-	chx2 = _mm_extract_epi32(chx, 2);
-	chx3 = _mm_extract_epi32(chx, 3);
-	*read_checksum += chx0 + chx1 + chx2 + chx3;
-	chx = _mm512_extracti32x4_epi32(sum, 2);
-	chx0 = _mm_extract_epi32(chx, 0);
-	chx1 = _mm_extract_epi32(chx, 1);
-	chx2 = _mm_extract_epi32(chx, 2);
-	chx3 = _mm_extract_epi32(chx, 3);
-	*read_checksum += chx0 + chx1 + chx2 + chx3;
-	chx = _mm512_extracti32x4_epi32(sum, 3);
-	chx0 = _mm_extract_epi32(chx, 0);
-	chx1 = _mm_extract_epi32(chx, 1);
-	chx2 = _mm_extract_epi32(chx, 2);
-	chx3 = _mm_extract_epi32(chx, 3);
-	*read_checksum += chx0 + chx1 + chx2 + chx3;
-	return (STREAM_ARRAY_SIZE*sizeof(STREAM_TYPE));
+	printf("Not implemented"); exit(-1); return -1;
 }
 
 #define READ64_ARRAY_COUNT_CHUNK128 (READ64_ARRAY_COUNT/128)
 
 double STREAM_Read64_Random_Chunk128(uint64_t *read_checksum) {
-	int j, k;
-	__m512i sum = _mm512_set_epi32(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
-	uint64_t x = 432437644;
-	// srand(x);
-	for (j=0; j<READ64_ARRAY_COUNT_CHUNK128; j++) {
-		for(k = 0; k < 128; k++) {
-			__m512i mm_a = _mm512_load_si512(&a[128*8*(x & (READ64_ARRAY_COUNT_CHUNK128 - 1)) + 8*k]);
-			sum = _mm512_add_epi32(sum, mm_a);
-		}
-		x ^= x << 13;
-		x ^= x >> 7;
-		x ^= x << 17;
-		// x ^= x >> 12;
-		// x ^= x << 25;
-		// x ^= x >> 27;
-	}
-
-	int chx0, chx1, chx2, chx3;
-	__m128i chx;
-	chx = _mm512_extracti32x4_epi32(sum, 0);
-	chx0 = _mm_extract_epi32(chx, 0);
-	chx1 = _mm_extract_epi32(chx, 1);
-	chx2 = _mm_extract_epi32(chx, 2);
-	chx3 = _mm_extract_epi32(chx, 3);
-	*read_checksum += chx0 + chx1 + chx2 + chx3;
-	chx = _mm512_extracti32x4_epi32(sum, 1);
-	chx0 = _mm_extract_epi32(chx, 0);
-	chx1 = _mm_extract_epi32(chx, 1);
-	chx2 = _mm_extract_epi32(chx, 2);
-	chx3 = _mm_extract_epi32(chx, 3);
-	*read_checksum += chx0 + chx1 + chx2 + chx3;
-	chx = _mm512_extracti32x4_epi32(sum, 2);
-	chx0 = _mm_extract_epi32(chx, 0);
-	chx1 = _mm_extract_epi32(chx, 1);
-	chx2 = _mm_extract_epi32(chx, 2);
-	chx3 = _mm_extract_epi32(chx, 3);
-	*read_checksum += chx0 + chx1 + chx2 + chx3;
-	chx = _mm512_extracti32x4_epi32(sum, 3);
-	chx0 = _mm_extract_epi32(chx, 0);
-	chx1 = _mm_extract_epi32(chx, 1);
-	chx2 = _mm_extract_epi32(chx, 2);
-	chx3 = _mm_extract_epi32(chx, 3);
-	*read_checksum += chx0 + chx1 + chx2 + chx3;
-	return (STREAM_ARRAY_SIZE*sizeof(STREAM_TYPE));
+	printf("Not implemented"); exit(-1); return -1;
 }
 
 double STREAM_Write16(uint64_t *read_checksum) {
-	int j;
-	__m128i val = _mm_set_epi32(1995, 1995, 2002, 2002);
-	__m128i sum = _mm_set_epi32(0, 0, 0, 0);
-	for (j=0; j<STREAM_ARRAY_SIZE; j += 2) {
-		_mm_store_si128(&a[j], val);
-	}
-
-	return (STREAM_ARRAY_SIZE*sizeof(STREAM_TYPE));
+	// TODO
+	// int j;
+	// __m128i val = _mm_set_epi32(1995, 1995, 2002, 2002);
+	// __m128i sum = _mm_set_epi32(0, 0, 0, 0);
+	// for (j=0; j<STREAM_ARRAY_SIZE;
 }
 
 double STREAM_Write64(uint64_t *read_checksum) {
-	int j;
-	__m512i val = _mm512_set_epi32(1995, 1995, 2002, 2002, 1995, 1995, 2002, 2002, 1995, 1995, 2002, 2002, 1995, 1995, 2002, 2002);
-	for (j=0; j<STREAM_ARRAY_SIZE; j += 8) {
-		_mm512_store_si512(&a[j], val);
-	}
-
-	return (STREAM_ARRAY_SIZE*sizeof(STREAM_TYPE));
+	printf("Not implemented"); exit(-1); return -1;
 }
-
-// double STREAM_ReadWrite16(uint64_t *read_checksum) {
-// 	int j;
-// 	__m128i val = _mm_set_epi32(1995, 1995, 2002, 2002);
-// 	for (j=0; j<STREAM_ARRAY_SIZE; j += 2) {
-// 		__m128i mm_a = _mm_load_si128(&a[j]);
-// 		_mm_store_si128(&a[j], _mm_add_epi32(mm_a, val));
-// 	}
-
-// 	return (2*STREAM_ARRAY_SIZE*sizeof(STREAM_TYPE));
-// }
-
 double STREAM_ReadWrite16(uint64_t *read_checksum) {
-	asm volatile(
-        "mov    %[memarea], %%rax \n"
-        "2: \n"
-        "movdqa 0*16(%%rax), %%xmm0 \n"
-		"movdqa %%xmm0, 0*16(%%rax) \n"
-        "movdqa 1*16(%%rax), %%xmm1 \n"
-		"movdqa %%xmm1, 1*16(%%rax) \n"
-        "movdqa 2*16(%%rax), %%xmm2 \n"
-		"movdqa %%xmm2, 2*16(%%rax) \n"
-        "movdqa 3*16(%%rax), %%xmm3 \n"
-		"movdqa %%xmm3, 3*16(%%rax) \n"
-        "movdqa 4*16(%%rax), %%xmm4 \n"
-		"movdqa %%xmm4, 4*16(%%rax) \n"
-        "movdqa 5*16(%%rax), %%xmm5 \n"
-		"movdqa %%xmm5, 5*16(%%rax) \n"
-        "movdqa 6*16(%%rax), %%xmm6 \n"
-		"movdqa %%xmm6, 6*16(%%rax) \n"
-        "movdqa 7*16(%%rax), %%xmm7 \n"
-		"movdqa %%xmm7, 7*16(%%rax) \n"
-        "add    $8*16, %%rax \n"
-        "cmp    %[end], %%rax \n"
-        "jb     2b \n"
-		:
-        : [memarea] "r" ((char *)a), [end] "r" ((char *)(a+STREAM_ARRAY_SIZE))
-        : "rax", "xmm0", "xmm1", "xmm2", "xmm3", "xmm4", "xmm5", "xmm6", "xmm7", "cc", "memory");
-	return (2*STREAM_ARRAY_SIZE*sizeof(STREAM_TYPE));
+	//TODO
+	// asm volatile(
+    //     "mov    %[memarea], %%rax \n"
+    //     "2: \n"
+    //     "movdqa 0*16(%%rax), %%xmm0 \n"
+	// 	"movdqa %%xmm0, 0*16(%%rax) \n"
+    //     "movdqa 1*16(%%rax), %%xmm1 \n"
+	// 	"movdqa %%xmm1, 1*16(%%rax) \n"
+    
+	return (3*STREAM_ARRAY_SIZE*sizeof(STREAM_TYPE));
 }
-
 double STREAM_ReadWrite64(uint64_t *read_checksum) {
-	int j;
-	__m512i val = _mm512_set_epi32(1995, 1995, 2002, 2002, 1995, 1995, 2002, 2002, 1995, 1995, 2002, 2002, 1995, 1995, 2002, 2002);
-	for (j=0; j<STREAM_ARRAY_SIZE; j += 8) {
-		__m512i mm_a = _mm512_load_si512(&a[j]);
-		_mm512_store_si512(&a[j], _mm512_add_epi32(mm_a, val));
-	}
-
-	return (2*STREAM_ARRAY_SIZE*sizeof(STREAM_TYPE));
+	printf("Not implemented"); exit(-1); return -1;
 }
 
 double STREAM_NtWrite64(uint64_t *read_checksum) {
-	int j;
-	__m512i val = _mm512_set_epi32(1995, 1995, 2002, 2002, 1995, 1995, 2002, 2002, 1995, 1995, 2002, 2002, 1995, 1995, 2002, 2002);
-	for (j=0; j<STREAM_ARRAY_SIZE; j += 8) {
-		_mm512_stream_si512(&a[j], val);
-	}
-
-	return (STREAM_ARRAY_SIZE*sizeof(STREAM_TYPE));
+	printf("Not implemented"); exit(-1); return -1;
 }
 
 double STREAM_Triad(uint64_t *read_checksum) {
-	ssize_t j;
-	for (j=0; j<STREAM_ARRAY_SIZE; j++) {
-	    a[j] = b[j]+3.0*c[j];
-	}
-	return (3*STREAM_ARRAY_SIZE*sizeof(STREAM_TYPE));
+	//todo
+	return -1;
+	// ssize_t j;
+	// for (j=0; j<STREAM_ARRAY_SIZE; j++) {
+	//     a[j] = b[j]+3.0*c[j];
+	// }
+	// return (3*STREAM_ARRAY_SIZE*sizeof(STREAM_TYPE));
 }
 
-
 double STREAM_NtWrite64_Random(uint64_t *read_checksum) {
-	int j;
-	__m512i val = _mm512_set_epi32(1995, 1995, 2002, 2002, 1995, 1995, 2002, 2002, 1995, 1995, 2002, 2002, 1995, 1995, 2002, 2002);
-	uint64_t x = 432437644;
-	for (j=0; j<STREAM_ARRAY_SIZE; j += 8) {
-		_mm512_stream_si512(&a[8*(x & (READ64_ARRAY_COUNT - 1))], val);
-		x ^= x << 13;
-		x ^= x >> 7;
-		x ^= x << 17;
-	}
-
-	return (STREAM_ARRAY_SIZE*sizeof(STREAM_TYPE));
+	printf("Not implemented"); exit(-1); return -1;
 }
 
 double STREAM_ReadWrite64_Random(uint64_t *read_checksum) {
-	int j;
-	__m512i val = _mm512_set_epi32(1995, 1995, 2002, 2002, 1995, 1995, 2002, 2002, 1995, 1995, 2002, 2002, 1995, 1995, 2002, 2002);
-	uint64_t x = 432437644;
-	for (j=0; j<STREAM_ARRAY_SIZE; j += 8) {
-		__m512i mm_a = _mm512_load_si512(&a[8*(x & (READ64_ARRAY_COUNT - 1))]);
-		_mm512_store_si512(&a[8*(x & (READ64_ARRAY_COUNT - 1))], _mm512_add_epi32(mm_a, val));
-		x ^= x << 13;
-		x ^= x >> 7;
-		x ^= x << 17;
-	}
-
-	return (2*STREAM_ARRAY_SIZE*sizeof(STREAM_TYPE));
+	printf("Not implemented"); exit(-1); return -1;
 }
 
 
@@ -876,15 +384,15 @@ main(int argc, char **argv)
 			exit(-1);
 		}
 	} else {
-		if(posix_memalign(&a, 64, STREAM_ARRAY_SIZE*sizeof(STREAM_TYPE)) != 0) {
+		if(posix_memalign((void**)&a, 64, STREAM_ARRAY_SIZE*sizeof(STREAM_TYPE)) != 0) {
 		printf("Failed to alloc buffer a\n");
 		exit(-1);
 		}
-		if(posix_memalign(&b, 64, STREAM_ARRAY_SIZE*sizeof(STREAM_TYPE)) != 0) {
+		if(posix_memalign((void**)&b, 64, STREAM_ARRAY_SIZE*sizeof(STREAM_TYPE)) != 0) {
 			printf("Failed to alloc buffer b\n");
 			exit(-1);
 		}
-		if(posix_memalign(&c, 64, STREAM_ARRAY_SIZE*sizeof(STREAM_TYPE)) != 0) {
+		if(posix_memalign((void**)&c, 64, STREAM_ARRAY_SIZE*sizeof(STREAM_TYPE)) != 0) {
 			printf("Failed to alloc buffer c\n");
 			exit(-1);
 		}
@@ -959,7 +467,7 @@ main(int argc, char **argv)
 	printf("Your clock granularity appears to be "
 	    "less than one microsecond.\n");
 	quantum = 1;
-    }
+	}
 
     t = mysecond();
 #pragma omp parallel for
@@ -979,7 +487,7 @@ main(int argc, char **argv)
     printf("For best results, please be sure you know the\n");
     printf("precision of your system timer.\n");
     printf(HLINE);
-    
+
     /*	--- MAIN LOOP --- repeat test cases NTIMES times --- */
 
 	int warmup_duration = 0;
@@ -998,6 +506,11 @@ main(int argc, char **argv)
 
 	char *workload = argv[1];
 	int duration = atoi(argv[2]);
+
+	if(strcmp(workload, "Read16") != 0) {
+        printf("Only Read16 supported right now!\n");
+        exit(-1);
+    }
 
 	double (*execute)(uint64_t *) = NULL;
 	if(strcmp(workload, "Read16") == 0) {
