@@ -1,11 +1,11 @@
 [global]
-name=p2m-iso
+name=p2m-iso-mmcblk0
 rw=read
 bs=8m
 direct=1
 numjobs=1
 time_based
-runtime=600
+runtime=120
 size=1G
 ioengine=libaio
 iodepth=64
@@ -15,4 +15,4 @@ cpus_allowed=3
 group_reporting
 scramble_buffers=0
 [job1]
-filename=/dev/nvme0n1
+filename=/dev/mmcblk0

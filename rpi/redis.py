@@ -3,7 +3,7 @@ import time
 import subprocess
 
 class RedisRunner:
-    def __init__(self, output_path, cores, mem_numa, opts, num_accesses_per_core):
+    def __init__(self, output_path, cores, mem_numa, opts):
             self.redis_server_path = "redis-server"# os.path.join(path, 'redis-server')
             self.redis_client_path = "redis-benchmark" # os.path.join(path, 'redis-benchmark')
             self.memtier_path = "memtier_benchmark" # os.path.join(memtier_path, 'memtier_benchmark')
@@ -16,7 +16,7 @@ class RedisRunner:
 
             # Default parameters (TODO: Parameterize)
             self.num_keys_per_core = 1000000
-            self.num_accesses_per_core = num_accesses_per_core
+            self.num_accesses_per_core = 50000000
             self.num_clients_per_core = 2
             self.write_frac = 0
             self.value_size = 1024
@@ -38,8 +38,7 @@ class RedisRunner:
             # Start servers
             for i in self.server_cores:
                 out_f = open(f"{self.output_path}.server-core{i}", 'w')
-                # numactl --membind 3 --physcpubind 3 ./redis-server --save "" --appendonly no --port 0 --bind 127.0.0.1 --unixsocket /tmp/redis.sock --unixsocketperm 755
-                args = ['numactl', '--membind', str(self.mem_numa), '--physcpubind', str(i), self.redis_server_path, '--save', '""', '--appendonly', 'no', '--port', '0', '--bind', '127.0.0.1', '--unixsocket', ('/tmp/redis.sock%d'%(i)), '--unixsocketperm', '755']
+                args = [self.redis_server_path, '--save', '""', '--appendonly', 'no', '--port', '0', '--bind', '127.0.0.1', '--unixsocket', ('/tmp/redis.sock%d'%(i)), '--unixsocketperm', '755']
                 self.server_procs.append(subprocess.Popen(args, stdout=out_f, stderr=subprocess.STDOUT))
 
             # print('redis servers started')
@@ -74,7 +73,7 @@ class RedisRunner:
             out_f = open(self.output_path + ('-core%d'%(j)), 'w')
         # numactl --membind 0 --physcpubind 0 ./redis-benchmark -c 2 -n 100000000 -d 1024 -r 1000000 -t get -P 128
             args = []
-            args += ['numactl', '--membind', str(self.client_numa), '--physcpubind', str(i), self.redis_client_path, '-s', '/tmp/redis.sock%d'%(j), '-c', str(self.num_clients_per_core), '-n', str(self.num_accesses_per_core), '-d', str(self.value_size), '-r', str(self.num_keys_per_core), '-t', workload, '-P', str(self.pipeline)]
+            args += [self.redis_client_path, '-s', '/tmp/redis.sock%d'%(j), '-c', str(self.num_clients_per_core), '-n', str(self.num_accesses_per_core), '-d', str(self.value_size), '-r', str(self.num_keys_per_core), '-t', workload, '-P', str(self.pipeline)]
             self.procs.append(subprocess.Popen(args, stdout=out_f, stderr=subprocess.STDOUT))
     
     def wait(self):
@@ -105,5 +104,5 @@ class RedisRunner:
             raise Exception('Not supported')
 
 if __name__ == "__main__":
-    redis_runner = RedisRunner('./data/redis-data', [0,1,2,3], 0, {}, 100000000000)
+    redis_runner = RedisRunner('./data/redis-data', [0,1,2,3], 0, {})
     redis_runner.run(60)  # Run for 60 seconds (duration is ignored)
