@@ -1,0 +1,32 @@
+job1: (g=0): rw=read, bs=(R) 8192KiB-8192KiB, (W) 8192KiB-8192KiB, (T) 8192KiB-8192KiB, ioengine=libaio, iodepth=64
+...
+fio-3.41-49-gde3d
+Starting 2 processes
+
+job1: (groupid=0, jobs=2): err= 0: pid=96627: Sun Dec  7 23:18:05 2025
+  read: IOPS=111, BW=891MiB/s (935MB/s)(105GiB/121145msec)
+    slat (usec): min=286, max=12377, avg=8913.34, stdev=689.48
+    clat (msec): min=176, max=2252, avg=1138.94, stdev=90.15
+     lat (msec): min=180, max=2261, avg=1147.85, stdev=90.54
+    clat percentiles (msec):
+     |  1.00th=[ 1045],  5.00th=[ 1133], 10.00th=[ 1133], 20.00th=[ 1133],
+     | 30.00th=[ 1133], 40.00th=[ 1133], 50.00th=[ 1133], 60.00th=[ 1133],
+     | 70.00th=[ 1133], 80.00th=[ 1133], 90.00th=[ 1133], 95.00th=[ 1133],
+     | 99.00th=[ 1150], 99.50th=[ 1653], 99.90th=[ 2140], 99.95th=[ 2198],
+     | 99.99th=[ 2265]
+   bw (  KiB/s): min=851968, max=917504, per=100.00%, avg=912702.47, stdev=6160.65, samples=480
+   iops        : min=  104, max=  112, avg=111.40, stdev= 0.75, samples=480
+  lat (msec)   : 250=0.21%, 500=0.25%, 750=0.25%, 1000=0.25%, 2000=98.81%
+  lat (msec)   : >=2000=0.22%
+  cpu          : usr=0.02%, sys=2.06%, ctx=38016, majf=0, minf=65549
+  IO depths    : 1=0.1%, 2=0.1%, 4=0.1%, 8=0.1%, 16=0.2%, 32=0.5%, >=64=99.1%
+     submit    : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.0%
+     complete  : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.1%, >=64=0.0%
+     issued rwts: total=13496,0,0,0 short=0,0,0,0 dropped=0,0,0,0
+     latency   : target=0, window=0, percentile=100.00%, depth=64
+
+Run status group 0 (all jobs):
+   READ: bw=891MiB/s (935MB/s), 891MiB/s-891MiB/s (935MB/s-935MB/s), io=105GiB (113GB), run=121145-121145msec
+
+Disk stats (read/write):
+  nvme0n1: ios=215504/0, sectors=220676096/0, merge=0/0, ticks=244265611/0, in_queue=244265611, util=99.97%

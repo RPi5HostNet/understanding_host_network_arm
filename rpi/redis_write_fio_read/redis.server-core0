@@ -1,0 +1,7 @@
+76486:C 06 Dec 2025 01:07:01.617 * oO0OoO0OoO0Oo Redis is starting oO0OoO0OoO0Oo
+76486:C 06 Dec 2025 01:07:01.617 * Redis version=8.0.2, bits=64, commit=00000000, modified=0, pid=76486, just started
+76486:C 06 Dec 2025 01:07:01.617 * Configuration loaded
+76486:M 06 Dec 2025 01:07:01.618 * monotonic clock: POSIX clock_gettime
+76486:M 06 Dec 2025 01:07:01.618 * Running mode=standalone, port=0.
+76486:M 06 Dec 2025 01:07:01.619 * Server initialized
+76486:M 06 Dec 2025 01:07:01.619 * Ready to accept connections unix
