@@ -295,28 +295,24 @@ double STREAM_Read64_Random_Chunk128(uint64_t *read_checksum) {
 	printf("Not implemented"); exit(-1); return -1;
 }
 
+uint32_t uint_a0[4] __attribute__((aligned(16))) = {0,0,0,0};
 double STREAM_Write16(uint64_t *read_checksum) {
-	// TODO
-	// int j;
-	// __m128i val = _mm_set_epi32(1995, 1995, 2002, 2002);
-	// __m128i sum = _mm_set_epi32(0, 0, 0, 0);
-	// for (j=0; j<STREAM_ARRAY_SIZE;
+	int j;
+	uint32x4_t val = vld1q_u32(&uint_a0[0]);
+	uint32x4_t sum = vdupq_n_u32(0);
+	for (j=0; j<STREAM_ARRAY_SIZE; j += 2) {
+		// _mm_store_si128(&a[j], val);
+		vst1q_u32((uint32_t *)&a[j], val);
+	}
+
+	return (STREAM_ARRAY_SIZE*sizeof(STREAM_TYPE));
 }
 
 double STREAM_Write64(uint64_t *read_checksum) {
 	printf("Not implemented"); exit(-1); return -1;
 }
 double STREAM_ReadWrite16(uint64_t *read_checksum) {
-	//TODO
-	// asm volatile(
-    //     "mov    %[memarea], %%rax \n"
-    //     "2: \n"
-    //     "movdqa 0*16(%%rax), %%xmm0 \n"
-	// 	"movdqa %%xmm0, 0*16(%%rax) \n"
-    //     "movdqa 1*16(%%rax), %%xmm1 \n"
-	// 	"movdqa %%xmm1, 1*16(%%rax) \n"
-    
-	return (3*STREAM_ARRAY_SIZE*sizeof(STREAM_TYPE));
+	printf("Not implemented"); exit(-1); return -1;
 }
 double STREAM_ReadWrite64(uint64_t *read_checksum) {
 	printf("Not implemented"); exit(-1); return -1;
