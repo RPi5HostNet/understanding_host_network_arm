@@ -1,13 +1,10 @@
 import subprocess, os, datetime
 
 class STREAMRunner:
-    def __init__(self):
-        self.stream_path = "./stream_modified/stream.out" # os.path.join(path, 'stream')
-
-    def init(self, output_path, cores, mem_numa, opts):
+    def __init__(self, output_path, cores, opts):
+        self.stream_path = "./stream_modified/stream.out"
         self.output_path = output_path
         self.cores = cores
-        self.mem_numa = mem_numa
         self.opts = opts
 
         # Default parameters
@@ -21,8 +18,8 @@ class STREAMRunner:
     def run(self, duration):
         for i in self.cores:
             out_f = open(self.output_path + ('-core%d'%(i)), 'w')
-        # numactl --membind 3 --physcpubind 3 ./stream Read16 10
-            args = ['numactl', '--membind', str(self.mem_numa), '--physcpubind', str(i), self.stream_path]
+        # numactl --physcpubind 3 ./stream Read16 10
+            args = ['numactl', '--physcpubind', str(i), self.stream_path]
         
             workload_str = ''
             if self.write_frac == 0:
@@ -93,8 +90,7 @@ class STREAMRunner:
         self.write_frac = val
 
 if __name__ == "__main__":
-    stream_runner = STREAMRunner()
-    stream_runner.init('./data/stream-data', [2], 2, {})
+    stream_runner = STREAMRunner('./data/stream-data', [2], {})
     
     start_time = datetime.datetime.now()
     stream_runner.run(60)  # Run for 60 seconds
