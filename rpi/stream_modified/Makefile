@@ -6,9 +6,9 @@ FFLAGS = -O2 -fopenmp
 
 all: stream
 
-stream:
+stream: stream.c
 	#$(CC) $(CFLAGS) -DNTIMES=1000 -DSTREAM_ARRAY_SIZE=2097152 stream.c -o stream
-	$(CC) $(CFLAGS) stream.c -DNTIMES=1000 -o stream -DSTREAM_ARRAY_SIZE=125000000 # 1 GB array, doubles are 8 bytes
+	$(CC) $(CFLAGS) stream.c -DNTIMES=1000 -o stream.out -DSTREAM_ARRAY_SIZE=125000000 # 1 GB array, doubles are 8 bytes
 
 stream_f.exe: stream.f mysecond.o
 	$(CC) $(CFLAGS) -c mysecond.c

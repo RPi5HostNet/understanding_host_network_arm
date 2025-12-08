@@ -327,13 +327,11 @@ double STREAM_NtWrite64(uint64_t *read_checksum) {
 }
 
 double STREAM_Triad(uint64_t *read_checksum) {
-	//todo
-	return -1;
-	// ssize_t j;
-	// for (j=0; j<STREAM_ARRAY_SIZE; j++) {
-	//     a[j] = b[j]+3.0*c[j];
-	// }
-	// return (3*STREAM_ARRAY_SIZE*sizeof(STREAM_TYPE));
+	ssize_t j;
+	for (j=0; j<STREAM_ARRAY_SIZE; j++) {
+	    a[j] = b[j]+3.0*c[j];
+	}
+	return (3*STREAM_ARRAY_SIZE*sizeof(STREAM_TYPE));
 }
 
 double STREAM_NtWrite64_Random(uint64_t *read_checksum) {
@@ -507,10 +505,10 @@ main(int argc, char **argv)
 	char *workload = argv[1];
 	int duration = atoi(argv[2]);
 
-	if(strcmp(workload, "Read16") != 0) {
-        printf("Only Read16 supported right now!\n");
-        exit(-1);
-    }
+	// if(strcmp(workload, "Read16") != 0) {
+    //     printf("Only Read16 supported right now!\n");
+    //     exit(-1);
+    // }
 
 	double (*execute)(uint64_t *) = NULL;
 	if(strcmp(workload, "Read16") == 0) {
