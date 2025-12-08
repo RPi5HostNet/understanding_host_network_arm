@@ -1,8 +1,8 @@
-import subprocess, os
+import subprocess, os, datetime
 
 class STREAMRunner:
-    def __init__(self, path):
-        self.stream_path = "./stream_orig/stream.out" # os.path.join(path, 'stream')
+    def __init__(self):
+        self.stream_path = "./stream_modified/stream.out" # os.path.join(path, 'stream')
 
     def init(self, output_path, cores, mem_numa, opts):
         self.output_path = output_path
@@ -60,6 +60,8 @@ class STREAMRunner:
 
             if 'cooldown_duration' in self.opts:
                 my_env['COOLDOWN_DURATION'] = str(self.opts['cooldown_duration'])
+            
+            print("Running command: " + ' '.join(args))
 
             self.procs.append(subprocess.Popen(args, stdout=out_f, stderr=subprocess.STDOUT, env=my_env))
 
@@ -91,6 +93,10 @@ class STREAMRunner:
         self.write_frac = val
 
 if __name__ == "__main__":
-    stream_runner = STREAMRunner('./data/stream')
+    stream_runner = STREAMRunner()
     stream_runner.init('./data/stream-data', [2], 2, {})
+    
+    start_time = datetime.datetime.now()
     stream_runner.run(60)  # Run for 60 seconds
+    stream_runner.wait()
+    print(datetime.datetime.now() - start_time)
