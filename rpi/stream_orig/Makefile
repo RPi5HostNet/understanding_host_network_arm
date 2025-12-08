@@ -12,7 +12,7 @@ stream_f.exe: stream.f mysecond.o
 	$(FF) $(FFLAGS) stream.o mysecond.o -o stream_f.exe
 
 stream.out: stream.c
-	$(CC) $(CFLAGS) stream.c -o stream.out
+	$(CC) $(CFLAGS) stream.c -o stream.out -DSTREAM_ARRAY_SIZE=125000000 # 1 GB array, doubles are 8 bytes
 
 clean:
 	rm -f stream_f.exe stream_c.exe *.o *.out
