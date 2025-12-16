@@ -1,7 +1,0 @@
-76405:C 06 Dec 2025 01:05:14.545 * oO0OoO0OoO0Oo Redis is starting oO0OoO0OoO0Oo
-76405:C 06 Dec 2025 01:05:14.545 * Redis version=8.0.2, bits=64, commit=00000000, modified=0, pid=76405, just started
-76405:C 06 Dec 2025 01:05:14.545 * Configuration loaded
-76405:M 06 Dec 2025 01:05:14.545 * monotonic clock: POSIX clock_gettime
-76405:M 06 Dec 2025 01:05:14.546 * Running mode=standalone, port=0.
-76405:M 06 Dec 2025 01:05:14.547 * Server initialized
-76405:M 06 Dec 2025 01:05:14.547 * Ready to accept connections unix
