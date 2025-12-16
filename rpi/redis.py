@@ -15,7 +15,7 @@ class RedisRunner:
             self.opts = opts
 
             # Default parameters (TODO: Parameterize)
-            self.num_keys_per_core = 1000000
+            self.num_keys_per_core = 1_000_000
             self.num_accesses_per_core = num_accesses_per_core
             self.num_clients_per_core = 2
             self.write_frac = 0
@@ -105,5 +105,7 @@ class RedisRunner:
             raise Exception('Not supported')
 
 if __name__ == "__main__":
-    redis_runner = RedisRunner('./data/redis-data', [0,1,2,3], 0, {}, 100000000000)
+    redis_runner = RedisRunner('./data/redis-data', [0,1], 0, {}, 50_000_000)
+    input('Hit enter to run:')
     redis_runner.run(60)  # Run for 60 seconds (duration is ignored)
+    redis_runner.wait()

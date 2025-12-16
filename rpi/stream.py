@@ -27,7 +27,7 @@ class STREAMRunner:
             elif self.write_frac == 50:
                 workload_str += 'ReadWrite'
             elif self.write_frac == 100:
-                workload_str += 'NtWrite'
+                workload_str += 'Write'
 
             if self.instsize == 16:
                 workload_str += '16'
