@@ -45,7 +45,7 @@ Fio is configured to run on core *3*
 
 GAPBS isolated benchmark is run using the `gapbs.py` file. By setting the `gapbs_core_list` variable to the desired cores, the program can be pinned to said cores. We have taken measurements for running on `[0]`, `[0, 1]`, `[0, 1, 2]` cores.
 
-The configuration used here has $2^21$ nodes.
+The configuration used here has $2^{21}$ nodes.
 
 ### STREAM
 `stream.py` runs the STREAM benchmarks. 
