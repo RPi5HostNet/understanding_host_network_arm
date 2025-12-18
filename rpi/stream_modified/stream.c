@@ -1,3 +1,7 @@
+// This is a modified version of the STREAM benchmark that supports running only read/write kernels
+// Also uses NEON intrinsics for 16-byte operations
+// Based on the modified version of stream used in Vuppalapati et al., "Understanding the Host Network"
+
 /*-----------------------------------------------------------------------*/
 /* Program: STREAM                                                       */
 /* Revision: $Id: stream.c,v 5.10 2013/01/17 16:01:06 mccalpin Exp mccalpin $ */
@@ -221,20 +225,14 @@ extern int omp_get_num_threads();
 
 double STREAM_Read16(uint64_t *read_checksum) {
     int j;
-    // Initialize accumulator
     uint64x2_t sum = vdupq_n_u64(0);
 
     for (j=0; j<STREAM_ARRAY_SIZE; j += 2) {
         const uint64_t *p = (const uint64_t *)&a[j];
-        
-        // Load 16 bytes into NEON register
         uint64x2_t v = vld1q_u64(p);
-
-        // Accumulate
         sum = vaddq_u64(sum, v);
     }
 
-    // Horizontal add across the final vector
     *read_checksum += vaddvq_u64(sum);
     return (STREAM_ARRAY_SIZE*sizeof(STREAM_TYPE));
 }
@@ -301,7 +299,6 @@ double STREAM_Write16(uint64_t *read_checksum) {
 	uint32x4_t val = vld1q_u32(&uint_a0[0]);
 	uint32x4_t sum = vdupq_n_u32(0);
 	for (j=0; j<STREAM_ARRAY_SIZE; j += 2) {
-		// _mm_store_si128(&a[j], val);
 		vst1q_u32((uint32_t *)&a[j], val);
 	}
 
@@ -500,11 +497,6 @@ main(int argc, char **argv)
 
 	char *workload = argv[1];
 	int duration = atoi(argv[2]);
-
-	// if(strcmp(workload, "Read16") != 0) {
-    //     printf("Only Read16 supported right now!\n");
-    //     exit(-1);
-    // }
 
 	double (*execute)(uint64_t *) = NULL;
 	if(strcmp(workload, "Read16") == 0) {
