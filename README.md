@@ -32,35 +32,45 @@
 
 # Running the benchmarks
 ## Isolated benchmarks
-### Fio
+### `fio`
 The `p2m-iso.fio` files contains the configuration used for isolated Fio runs. 
 
 ```bash
 sudo fio ./p2m-iso.fio --output OUTPUT_FILE
 ```
 runs fio with the specified configuration and stores the output in the specified `OUTPUT_FILE`. 
-Fio is configured to run on core *3*
+`fio` is configured to run on core *3*
 
-### GAPBS
+### `GAPBS`
 
-GAPBS isolated benchmark is run using the `gapbs.py` file. By setting the `gapbs_core_list` variable to the desired cores, the program can be pinned to said cores. We have taken measurements for running on `[0]`, `[0, 1]`, `[0, 1, 2]` cores.
+`GAPBS` isolated benchmark is run using the `gapbs.py` file. By setting the `gapbs_core_list` variable to the desired cores, the program can be pinned to said cores. We have taken measurements for running on `[0]`, `[0, 1]`, `[0, 1, 2]` cores.
 
 The configuration used here has $2^{21}$ nodes.
 
-### STREAM
-`stream.py` runs the STREAM benchmarks. 
+### `STREAM`
+`stream.py` runs the `STREAM` benchmarks. 
 
 
 ## Co-located benchmarks
 
-### Fio and STREAM
+### `fio` and `STREAM`
 `run_stream_fio.py`  runs all R/W combinations of Fio and STREAM. 
 
-### Fio and GAPBS
-`fio.py` and `gapbs.py` are run together to co-locate  Fio and GAPBS. Fio's configuration has the runtime set to a large value. `fio.py` can be started first and then `gapbs.py` be started. 
-
+### `fio` and `GAPBS`
+`fio.py` and `gapbs.py` are run together to co-locate  Fio and GAPBS. Fio's configuration has the runtime set to a large value. `fio.py` can be started first, followed by `gapbs.py`. 
 
 The results are all stored in `data/` folder.
 
 
+## `STREAM` Ouput
+```tree
+stream_alone_read_012
+├── stream-core0
+├── stream-core1
+└── stream-core2
 
+1 directory, 3 files
+```
+
+`STREAM` outputs are given in a per-core basis. To find the aggregated throughput, the results from each core
+must to be added. `sum_stream_folders.sh` is used to perform this function. It defines a function `add_folder()`, which takes a folder name as its arguement and returns the aggregated throughput.
