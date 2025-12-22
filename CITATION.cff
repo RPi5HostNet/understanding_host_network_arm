@@ -1,0 +1,12 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+authors:
+  - family-names: Berberian
+    given-names: John
+  - family-names: Chinnasame Rani
+    given-names: Deebakkarthi
+  - family-names: Ermovick
+    given-names: Ethan
+title: "Understanding the Host Network: ARM Edition"
+date-released: 2025-12-16
+url: "https://github.com/RPi5HostNet/understanding_host_network_arm"

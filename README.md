@@ -1,6 +1,8 @@
 # Understanding the Host Network: ARM Edition
 
-# Directory Structure
+This project seeks to evaluate the effects on the contention of the host network of the Raspberry PI. We draw inspiration from [Vuppalapati et al](#1).
+
+## Directory Structure
 
 `rpi/` directory contains the Python scripts to run the benchmarks. `finalized-data/` has the results of all the benchmarks. `graph.py` was used for generating the graphs in the report.
 
@@ -74,3 +76,24 @@ stream_alone_read_012
 
 `STREAM` outputs are given in a per-core basis. To find the aggregated throughput, the results from each core
 must to be added. `sum_stream_folders.sh` is used to perform this function. It defines a function `add_folder()`, which takes a folder name as its arguement and returns the aggregated throughput.
+
+## Citation
+This project is free for use for research/education. Please cite as below.
+
+```
+@software{Berberian_Understanding_the_Host_2025,
+author = {Berberian, John and Chinnasame Rani, Deebakkarthi and Ermovick, Ethan},
+month = dec,
+title = {{Understanding the Host Network: ARM Edition}},
+url = {https://github.com/RPi5HostNet/understanding_host_network_arm},
+year = {2025}
+}
+```
+
+## References
+<a id="1">[1]</a>
+Midhul Vuppalapati, Saksham Agarwal, Henry Schuh, Baris Kasikci,
+Arvind Krishnamurthy, and Rachit Agarwal. 2024. Understanding the
+Host Network. In Proceedings of the ACM SIGCOMM 2024 Conference
+(ACM SIGCOMM ’24). Association for Computing Machinery, New
+York, NY, USA, 581–594. https://doi.org/10.1145/3651890.3672271
